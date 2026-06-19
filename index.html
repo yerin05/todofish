@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>미오 아쿠아리움 v4 (스와이프)</title>
+    <title>미오 아쿠아리움 v4 (모바일 터치 최적화)</title>
     <style>
         :root {
             --sea-dark: #001220; --sea-mid: #004a7c; --sea-light: #0094ff;
@@ -36,6 +36,8 @@
         .creature { 
             cursor: pointer; user-select: none; font-size: 30px; 
             filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+            /* 모바일에서 길게 눌렀을 때 복사되는 현상 방지 */
+            -webkit-touch-callout: none;
         }
         .speech-bubble {
             position: absolute; bottom: 110%; left: 50%; transform: translateX(-50%);
@@ -71,30 +73,28 @@
         }
         .storage-item:active { transform: scale(0.9); }
 
-        /* 🌟 스와이프 바텀 시트 스타일로 전면 개편 */
         .ui-layer {
             background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
             border-radius: 30px 30px 0 0; 
-            padding: 0 20px calc(env(safe-area-inset-bottom) + 15px); /* 상단 패딩 제거 */
+            padding: 0 20px calc(env(safe-area-inset-bottom) + 15px);
             display: flex; flex-direction: column; z-index: 1000;
             box-shadow: 0 -5px 25px rgba(0,0,0,0.2); border-top: 1px solid rgba(255,255,255,0.1);
             
-            /* 평소 높이(손잡이만 보임)와 애니메이션 */
             height: 45px; 
-            transition: height 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
-            overflow: hidden; /* 닫혀있을 때 내부 요소 숨김 */
+            transition: height 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            overflow: hidden; 
         }
         
-        /* 열렸을 때의 높이 */
         .ui-layer.expanded {
             height: 55vh; 
         }
         
-        /* 드래그 손잡이 (스와이프 터치 영역) */
+        /* 🌟 드래그 손잡이 (브라우저 간섭 차단 속성 추가) */
         .drag-handle {
             width: 100%; height: 45px; flex-shrink: 0;
             display: flex; justify-content: center; align-items: center;
-            cursor: grab;
+            cursor: pointer;
+            touch-action: none; /* 핵심: 모바일 브라우저의 기본 새로고침/스크롤 간섭 차단 */
         }
         .drag-handle::after {
             content: ''; width: 40px; height: 5px; background: rgba(255,255,255,0.4);
@@ -102,13 +102,13 @@
         }
 
         .tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 15px; flex-shrink: 0; }
-        .tab { background: var(--glass); padding: 12px 5px; border-radius: 14px; text-align: center; font-size: 13px; font-weight: bold; opacity: 0.5; transition: 0.2s; }
+        .tab { background: var(--glass); padding: 12px 5px; border-radius: 14px; text-align: center; font-size: 13px; font-weight: bold; opacity: 0.5; transition: 0.2s; cursor: pointer;}
         .tab.active { background: var(--sea-light); opacity: 1; }
         
         .input-box { display: flex; gap: 10px; margin-bottom: 15px; flex-shrink: 0; }
         input { flex: 1; background: var(--glass); border: none; padding: 15px; border-radius: 16px; color: white; outline: none; font-size: 16px; }
         input::placeholder { color: rgba(255,255,255,0.6); }
-        .add-btn { background: white; color: var(--sea-dark); border: none; border-radius: 16px; width: 54px; font-weight: bold; font-size: 24px; display: flex; align-items: center; justify-content: center; }
+        .add-btn { background: white; color: var(--sea-dark); border: none; border-radius: 16px; width: 54px; font-weight: bold; font-size: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
         .add-btn:active { background: #e0e0e0; }
 
         #todoList { 
@@ -118,10 +118,10 @@
         #todoList::-webkit-scrollbar { display: none; }
 
         .todo-item { display: flex; align-items: center; background: rgba(255,255,255,0.08); padding: 16px; border-radius: 18px; margin-bottom: 10px; }
-        .check { width: 26px; height: 26px; border: 2.5px solid var(--sea-light); border-radius: 50%; margin-right: 14px; flex-shrink: 0; transition: 0.2s; }
+        .check { width: 26px; height: 26px; border: 2.5px solid var(--sea-light); border-radius: 50%; margin-right: 14px; flex-shrink: 0; transition: 0.2s; cursor: pointer; }
         .check.done { background: var(--sea-light); display: flex; align-items: center; justify-content: center; }
         .check.done::after { content: '✓'; font-size: 15px; font-weight: bold; color: white; }
-        .todo-text { flex: 1; font-size: 16px; font-weight: 500; word-break: break-word; }
+        .todo-text { flex: 1; font-size: 16px; font-weight: 500; word-break: break-word; cursor: pointer; }
         .todo-text.done { opacity: 0.4; text-decoration: line-through; }
     </style>
 </head>
@@ -175,45 +175,44 @@
 
         const cheers = ["힘내ㅐ!", "할 수 있다어!", "거의 다 왔다어!", "최고!", "멋져!", "조금만 더!", "응원응원!","잘하고있어!"];
 
-        // 🌟 바텀 시트 스와이프 제어 로직
+        // 🌟 터치 씹힘을 해결한 스마트 스와이프 제어
         const uiLayer = document.getElementById('uiLayer');
         const dragHandle = document.getElementById('dragHandle');
         let startY = 0;
+        let hasSwiped = false; // 제스처가 '클릭'인지 '스와이프'인지 구분하는 플래그
 
-        // 터치 시작점 기억
         dragHandle.addEventListener('touchstart', (e) => {
             startY = e.touches[0].clientY;
+            hasSwiped = false;
         }, { passive: true });
 
-        // 화면 튕김 방지
         dragHandle.addEventListener('touchmove', (e) => {
-            e.preventDefault(); 
-        }, { passive: false });
+            if(Math.abs(e.touches[0].clientY - startY) > 10) {
+                hasSwiped = true; // 10px 이상 움직이면 '이건 스와이프다' 라고 못 박음
+            }
+        }, { passive: true });
 
-        // 터치가 끝났을 때 스와이프 방향 계산해서 열고 닫기
         dragHandle.addEventListener('touchend', (e) => {
-            const endY = e.changedTouches[0].clientY;
-            const deltaY = endY - startY;
-            
-            if (deltaY < -20) {
-                // 위로 스와이프: 열기
-                uiLayer.classList.add('expanded');
-            } else if (deltaY > 20) {
-                // 아래로 스와이프: 닫기
-                uiLayer.classList.remove('expanded');
-                document.getElementById('todoInput').blur(); // 닫힐 때 키보드도 숨기기
-            } else {
-                // 그냥 톡! 터치했을 때: 토글
+            if (hasSwiped) {
+                const endY = e.changedTouches[0].clientY;
+                const deltaY = endY - startY;
+                
+                if (deltaY < -20) {
+                    uiLayer.classList.add('expanded'); // 위로 스와이프 (열기)
+                } else if (deltaY > 20) {
+                    uiLayer.classList.remove('expanded'); // 아래로 스와이프 (닫기)
+                    document.getElementById('todoInput').blur();
+                }
+            }
+        });
+
+        // 그냥 터치(클릭)했을 때
+        dragHandle.addEventListener('click', () => {
+            if (!hasSwiped) {
                 uiLayer.classList.toggle('expanded');
                 if(!uiLayer.classList.contains('expanded')) document.getElementById('todoInput').blur();
             }
         });
-        
-        // PC 마우스 클릭용
-        dragHandle.addEventListener('click', () => {
-            uiLayer.classList.toggle('expanded');
-        });
-
 
         function save() {
             localStorage.setItem('aqua-v4-todos', JSON.stringify(todos));
@@ -240,10 +239,8 @@
 
         function toggle(id) {
             const todo = todos.find(t => t.id === id);
-            if (!todo.done) {
-                todo.done = true;
-                checkMilestone(todo.type);
-            } else { todo.done = false; }
+            todo.done = !todo.done;
+            if (todo.done) checkMilestone(todo.type);
             save();
             render();
         }
@@ -252,10 +249,63 @@
             const completedCount = todos.filter(t => t.type === type && t.done).length;
             const totalCompleted = todos.filter(t => t.done).length;
             
-            // ⭐ 1개 완료 시 생성 (테스트)
             if (completedCount > 0 && completedCount % 1 === 0) spawnCreature(type);
             if (totalCompleted > 0 && totalCompleted % 5 === 0) spawnCreature('whale');
         }
 
         function spawnCreature(type) {
-            const iconList = type === 'whale' ? ['🐋', '🐳'] : fishAssets
+            const iconList = type === 'whale' ? ['🐋', '🐳'] : fishAssets[type];
+            const newItem = {
+                id: Date.now(),
+                icon: iconList[Math.floor(Math.random() * iconList.length)],
+                x: Math.random() * 80 + 10, y: Math.random() * 50 + 10,
+                vx: (Math.random() - 0.5) * 2, vy: (Math.random() - 0.5) * 2,
+                size: type === 'whale' ? 70 : (type === 'month' ? 45 : 30),
+                type: type, clickCount: 0
+            };
+            aquariumItems.push(newItem);
+            save();
+            initCreatures();
+        }
+
+        function initCreatures() {
+            const container = document.getElementById('aquarium');
+            container.querySelectorAll('.creature-container').forEach(c => c.remove());
+            elements = [];
+
+            aquariumItems.forEach(item => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'creature-container';
+                
+                const bubble = document.createElement('div');
+                bubble.className = 'speech-bubble';
+                
+                const el = document.createElement('div');
+                el.className = 'creature';
+                el.innerText = item.icon;
+                el.style.fontSize = item.size + 'px';
+                
+                wrapper.appendChild(bubble);
+                wrapper.appendChild(el);
+                
+                // 🌟 물고기도 터치가 씹히지 않게 표준 onclick 으로 통일
+                el.onclick = (e) => handleCreatureClick(item, bubble, e);
+                
+                container.appendChild(wrapper);
+                elements.push({ dom: wrapper, data: item });
+            });
+            document.getElementById('total-count').innerText = todos.filter(t => t.done).length;
+        }
+
+        function handleCreatureClick(item, bubble, e) {
+            e.stopPropagation();
+            
+            item.clickCount = (item.clickCount || 0) + 1;
+            
+            bubble.innerText = cheers[Math.floor(Math.random() * cheers.length)];
+            bubble.style.display = 'block';
+            
+            clearTimeout(item.bubbleTimeout);
+            item.bubbleTimeout = setTimeout(() => bubble.style.display = 'none', 1500);
+
+            if (item.clickCount
