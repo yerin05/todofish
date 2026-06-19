@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>미오 아쿠아리움 v4 (TEST)</title>
+    <title>미오 아쿠아리움 v4 (스와이프)</title>
     <style>
         :root {
             --sea-dark: #001220; --sea-mid: #004a7c; --sea-light: #0094ff;
@@ -17,7 +17,9 @@
             color: white; margin: 0; overflow: hidden; height: 100vh; display: flex; flex-direction: column;
             -webkit-tap-highlight-color: transparent;
         }
+
         #aquarium { flex: 1; position: relative; overflow: hidden; }
+
         .top-ui {
             position: absolute; top: env(safe-area-inset-top, 20px); left: 20px; right: 20px;
             display: flex; justify-content: space-between; align-items: center; z-index: 100;
@@ -29,6 +31,7 @@
             backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
         }
         .storage-btn { background: var(--sea-light); border: none; color: white; cursor: pointer; }
+
         .creature-container { position: absolute; z-index: 50; pointer-events: auto; }
         .creature { 
             cursor: pointer; user-select: none; font-size: 30px; 
@@ -45,6 +48,7 @@
             margin-left: -6px; border-width: 6px; border-style: solid;
             border-color: white transparent transparent transparent;
         }
+
         #storage-modal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.85); z-index: 2000; flex-direction: column; justify-content: center; align-items: center;
@@ -66,29 +70,53 @@
             border-radius: 16px; cursor: pointer; transition: transform 0.1s;
         }
         .storage-item:active { transform: scale(0.9); }
+
+        /* 🌟 스와이프 바텀 시트 스타일로 전면 개편 */
         .ui-layer {
             background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            border-radius: 30px 30px 0 0; padding: 15px 20px calc(env(safe-area-inset-bottom) + 15px);
-            height: 48vh; display: flex; flex-direction: column; z-index: 1000;
+            border-radius: 30px 30px 0 0; 
+            padding: 0 20px calc(env(safe-area-inset-bottom) + 15px); /* 상단 패딩 제거 */
+            display: flex; flex-direction: column; z-index: 1000;
             box-shadow: 0 -5px 25px rgba(0,0,0,0.2); border-top: 1px solid rgba(255,255,255,0.1);
+            
+            /* 평소 높이(손잡이만 보임)와 애니메이션 */
+            height: 45px; 
+            transition: height 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+            overflow: hidden; /* 닫혀있을 때 내부 요소 숨김 */
         }
-        .ui-layer::before {
-            content: ''; width: 40px; height: 5px; background: rgba(255,255,255,0.3);
-            border-radius: 5px; margin: 0 auto 15px auto; display: block;
+        
+        /* 열렸을 때의 높이 */
+        .ui-layer.expanded {
+            height: 55vh; 
         }
+        
+        /* 드래그 손잡이 (스와이프 터치 영역) */
+        .drag-handle {
+            width: 100%; height: 45px; flex-shrink: 0;
+            display: flex; justify-content: center; align-items: center;
+            cursor: grab;
+        }
+        .drag-handle::after {
+            content: ''; width: 40px; height: 5px; background: rgba(255,255,255,0.4);
+            border-radius: 5px;
+        }
+
         .tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 15px; flex-shrink: 0; }
         .tab { background: var(--glass); padding: 12px 5px; border-radius: 14px; text-align: center; font-size: 13px; font-weight: bold; opacity: 0.5; transition: 0.2s; }
         .tab.active { background: var(--sea-light); opacity: 1; }
+        
         .input-box { display: flex; gap: 10px; margin-bottom: 15px; flex-shrink: 0; }
         input { flex: 1; background: var(--glass); border: none; padding: 15px; border-radius: 16px; color: white; outline: none; font-size: 16px; }
         input::placeholder { color: rgba(255,255,255,0.6); }
         .add-btn { background: white; color: var(--sea-dark); border: none; border-radius: 16px; width: 54px; font-weight: bold; font-size: 24px; display: flex; align-items: center; justify-content: center; }
         .add-btn:active { background: #e0e0e0; }
+
         #todoList { 
             flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; 
             padding-bottom: 10px; scrollbar-width: none;
         }
         #todoList::-webkit-scrollbar { display: none; }
+
         .todo-item { display: flex; align-items: center; background: rgba(255,255,255,0.08); padding: 16px; border-radius: 18px; margin-bottom: 10px; }
         .check { width: 26px; height: 26px; border: 2.5px solid var(--sea-light); border-radius: 50%; margin-right: 14px; flex-shrink: 0; transition: 0.2s; }
         .check.done { background: var(--sea-light); display: flex; align-items: center; justify-content: center; }
@@ -106,7 +134,9 @@
         </div>
     </div>
 
-    <div class="ui-layer">
+    <div class="ui-layer" id="uiLayer">
+        <div class="drag-handle" id="dragHandle"></div>
+        
         <div class="tabs">
             <div id="tab-month" class="tab active" onclick="setTab('month', this)">월간</div>
             <div id="tab-week" class="tab" onclick="setTab('week', this)">주간</div>
@@ -145,6 +175,46 @@
 
         const cheers = ["힘내ㅐ!", "할 수 있다어!", "거의 다 왔다어!", "최고!", "멋져!", "조금만 더!", "응원응원!","잘하고있어!"];
 
+        // 🌟 바텀 시트 스와이프 제어 로직
+        const uiLayer = document.getElementById('uiLayer');
+        const dragHandle = document.getElementById('dragHandle');
+        let startY = 0;
+
+        // 터치 시작점 기억
+        dragHandle.addEventListener('touchstart', (e) => {
+            startY = e.touches[0].clientY;
+        }, { passive: true });
+
+        // 화면 튕김 방지
+        dragHandle.addEventListener('touchmove', (e) => {
+            e.preventDefault(); 
+        }, { passive: false });
+
+        // 터치가 끝났을 때 스와이프 방향 계산해서 열고 닫기
+        dragHandle.addEventListener('touchend', (e) => {
+            const endY = e.changedTouches[0].clientY;
+            const deltaY = endY - startY;
+            
+            if (deltaY < -20) {
+                // 위로 스와이프: 열기
+                uiLayer.classList.add('expanded');
+            } else if (deltaY > 20) {
+                // 아래로 스와이프: 닫기
+                uiLayer.classList.remove('expanded');
+                document.getElementById('todoInput').blur(); // 닫힐 때 키보드도 숨기기
+            } else {
+                // 그냥 톡! 터치했을 때: 토글
+                uiLayer.classList.toggle('expanded');
+                if(!uiLayer.classList.contains('expanded')) document.getElementById('todoInput').blur();
+            }
+        });
+        
+        // PC 마우스 클릭용
+        dragHandle.addEventListener('click', () => {
+            uiLayer.classList.toggle('expanded');
+        });
+
+
         function save() {
             localStorage.setItem('aqua-v4-todos', JSON.stringify(todos));
             localStorage.setItem('aqua-v4-items', JSON.stringify(aquariumItems));
@@ -182,134 +252,10 @@
             const completedCount = todos.filter(t => t.type === type && t.done).length;
             const totalCompleted = todos.filter(t => t.done).length;
             
-            // ⭐ 테스트용 조건: 1개 완료할 때마다 생성 (원래는 completedCount % 10 === 0)
+            // ⭐ 1개 완료 시 생성 (테스트)
             if (completedCount > 0 && completedCount % 1 === 0) spawnCreature(type);
-            // ⭐ 테스트용 조건: 총 5개 완료 시 고래 생성 (원래는 totalCompleted % 100 === 0)
             if (totalCompleted > 0 && totalCompleted % 5 === 0) spawnCreature('whale');
         }
 
         function spawnCreature(type) {
-            const iconList = type === 'whale' ? ['🐋', '🐳'] : fishAssets[type];
-            const newItem = {
-                id: Date.now(),
-                icon: iconList[Math.floor(Math.random() * iconList.length)],
-                x: Math.random() * 80 + 10, y: Math.random() * 50 + 10,
-                vx: (Math.random() - 0.5) * 2, vy: (Math.random() - 0.5) * 2,
-                size: type === 'whale' ? 70 : (type === 'month' ? 45 : 30),
-                type: type, clickCount: 0
-            };
-            aquariumItems.push(newItem);
-            save();
-            initCreatures();
-        }
-
-        function initCreatures() {
-            const container = document.getElementById('aquarium');
-            container.querySelectorAll('.creature-container').forEach(c => c.remove());
-            elements = [];
-
-            aquariumItems.forEach(item => {
-                const wrapper = document.createElement('div');
-                wrapper.className = 'creature-container';
-                
-                const bubble = document.createElement('div');
-                bubble.className = 'speech-bubble';
-                
-                const el = document.createElement('div');
-                el.className = 'creature';
-                el.innerText = item.icon;
-                el.style.fontSize = item.size + 'px';
-                
-                wrapper.appendChild(bubble);
-                wrapper.appendChild(el);
-                
-                el.onmousedown = (e) => handleCreatureClick(item, bubble, e);
-                el.ontouchstart = (e) => handleCreatureClick(item, bubble, e);
-                
-                container.appendChild(wrapper);
-                elements.push({ dom: wrapper, data: item });
-            });
-            document.getElementById('total-count').innerText = todos.filter(t => t.done).length;
-        }
-
-        function handleCreatureClick(item, bubble, e) {
-            e.stopPropagation();
-            e.preventDefault();
-            
-            item.clickCount = (item.clickCount || 0) + 1;
-            
-            bubble.innerText = cheers[Math.floor(Math.random() * cheers.length)];
-            bubble.style.display = 'block';
-            
-            clearTimeout(item.bubbleTimeout);
-            item.bubbleTimeout = setTimeout(() => bubble.style.display = 'none', 1500);
-
-            if (item.clickCount >= 2) {
-                item.clickCount = 0;
-                archivedItems.push(item);
-                aquariumItems = aquariumItems.filter(i => i.id !== item.id);
-                save();
-                initCreatures();
-            }
-        }
-
-        function openStorage() {
-            const grid = document.getElementById('storage-grid');
-            grid.innerHTML = '';
-            if (archivedItems.length === 0) {
-                grid.innerHTML = '<div style="grid-column: 1/-1; opacity:0.5; font-size:14px; padding:20px 0;">보관함이 비어있습니다.</div>';
-            }
-            archivedItems.forEach((item, idx) => {
-                const div = document.createElement('div');
-                div.className = 'storage-item';
-                div.innerText = item.icon;
-                div.onclick = () => {
-                    aquariumItems.push(item);
-                    archivedItems.splice(idx, 1);
-                    save();
-                    openStorage();
-                    initCreatures();
-                };
-                grid.appendChild(div);
-            });
-            document.getElementById('storage-modal').style.display = 'flex';
-        }
-
-        function closeStorage() { document.getElementById('storage-modal').style.display = 'none'; }
-
-        function animate() {
-            elements.forEach(obj => {
-                const item = obj.data; const el = obj.dom;
-                item.x += item.vx * 0.3; item.y += item.vy * 0.3;
-                if (item.x < 0 || item.x > 90) item.vx *= -1;
-                if (item.y < 5 || item.y > 85) item.vy *= -1;
-                const flip = item.vx > 0 ? 'scaleX(-1)' : 'scaleX(1)';
-                el.style.left = item.x + '%'; el.style.top = item.y + '%';
-                el.style.transform = `${flip}`;
-            });
-            requestAnimationFrame(animate);
-        }
-
-        function render() {
-            const list = document.getElementById('todoList');
-            list.innerHTML = '';
-            const currentTodos = todos.filter(t => t.type === currentTab);
-            const activeTasks = currentTodos.filter(t => !t.done);
-            const doneTasks = currentTodos.filter(t => t.done);
-            
-            if(currentTodos.length === 0) {
-                list.innerHTML = `<div style="text-align:center; padding: 30px; opacity: 0.5; font-size: 14px;">할 일이 없습니다.<br>수조를 채워볼까요?</div>`;
-            }
-
-            [...activeTasks, ...doneTasks].forEach(t => {
-                const item = document.createElement('div');
-                item.className = 'todo-item';
-                item.innerHTML = `<div class="check ${t.done ? 'done' : ''}" onclick="toggle(${t.id})"></div><div class="todo-text ${t.done ? 'done' : ''}" onclick="toggle(${t.id})">${t.text}</div>`;
-                list.appendChild(item);
-            });
-        }
-
-        initCreatures(); render(); animate();
-    </script>
-</body>
-</html>
+            const iconList = type === 'whale' ? ['🐋', '🐳'] : fishAssets
