@@ -308,4 +308,72 @@
             clearTimeout(item.bubbleTimeout);
             item.bubbleTimeout = setTimeout(() => bubble.style.display = 'none', 1500);
 
-            if (item.clickCount
+            if (item.clickCount >= 2) {
+                item.clickCount = 0;
+                archivedItems.push(item);
+                aquariumItems = aquariumItems.filter(i => i.id !== item.id);
+                save();
+                initCreatures();
+            }
+        }
+
+        function openStorage() {
+            const grid = document.getElementById('storage-grid');
+            grid.innerHTML = '';
+            if (archivedItems.length === 0) {
+                grid.innerHTML = '<div style="grid-column: 1/-1; opacity:0.5; font-size:14px; padding:20px 0;">보관함이 비어있습니다.</div>';
+            }
+            archivedItems.forEach((item, idx) => {
+                const div = document.createElement('div');
+                div.className = 'storage-item';
+                div.innerText = item.icon;
+                div.onclick = () => {
+                    aquariumItems.push(item);
+                    archivedItems.splice(idx, 1);
+                    save();
+                    openStorage();
+                    initCreatures();
+                };
+                grid.appendChild(div);
+            });
+            document.getElementById('storage-modal').style.display = 'flex';
+        }
+
+        function closeStorage() { document.getElementById('storage-modal').style.display = 'none'; }
+
+        function animate() {
+            elements.forEach(obj => {
+                const item = obj.data; const el = obj.dom;
+                item.x += item.vx * 0.3; item.y += item.vy * 0.3;
+                if (item.x < 0 || item.x > 90) item.vx *= -1;
+                if (item.y < 5 || item.y > 85) item.vy *= -1;
+                const flip = item.vx > 0 ? 'scaleX(-1)' : 'scaleX(1)';
+                el.style.left = item.x + '%'; el.style.top = item.y + '%';
+                el.style.transform = `${flip}`;
+            });
+            requestAnimationFrame(animate);
+        }
+
+        function render() {
+            const list = document.getElementById('todoList');
+            list.innerHTML = '';
+            const currentTodos = todos.filter(t => t.type === currentTab);
+            const activeTasks = currentTodos.filter(t => !t.done);
+            const doneTasks = currentTodos.filter(t => t.done);
+            
+            if(currentTodos.length === 0) {
+                list.innerHTML = `<div style="text-align:center; padding: 30px; opacity: 0.5; font-size: 14px;">할 일이 없습니다.<br>수조를 채워볼까요?</div>`;
+            }
+
+            [...activeTasks, ...doneTasks].forEach(t => {
+                const item = document.createElement('div');
+                item.className = 'todo-item';
+                item.innerHTML = `<div class="check ${t.done ? 'done' : ''}" onclick="toggle(${t.id})"></div><div class="todo-text ${t.done ? 'done' : ''}" onclick="toggle(${t.id})">${t.text}</div>`;
+                list.appendChild(item);
+            });
+        }
+
+        initCreatures(); render(); animate();
+    </script>
+</body>
+</html>
