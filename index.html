@@ -5,20 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>fish</title>
+    <title>미오 아쿠아리움 v4 (모바일 최적화 완결판)</title>
     <style>
         :root {
             --sea-dark: #001220; --sea-mid: #004a7c; --sea-light: #0094ff;
             --glass: rgba(255, 255, 255, 0.15);
         }
+        
+        /* 🌟 핵심 해결: 화면이 튕기거나 하단 UI가 폰 화면 밑으로 숨어버리지 않게 완벽 고정 */
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background: linear-gradient(180deg, var(--sea-mid) 0%, var(--sea-dark) 100%);
-            color: white; margin: 0; overflow: hidden; height: 100vh; display: flex; flex-direction: column;
+            color: white; margin: 0; overflow: hidden; 
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0; width: 100%; height: 100%;
             -webkit-tap-highlight-color: transparent;
+            display: flex; flex-direction: column;
         }
 
-        #aquarium { flex: 1; position: relative; overflow: hidden; }
+        #aquarium { flex: 1; position: relative; overflow: hidden; padding-bottom: 80px; }
 
         .top-ui {
             position: absolute; top: env(safe-area-inset-top, 20px); left: 20px; right: 20px;
@@ -36,7 +40,6 @@
         .creature { 
             cursor: pointer; user-select: none; font-size: 30px; 
             filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
-            /* 모바일에서 길게 눌렀을 때 복사되는 현상 방지 */
             -webkit-touch-callout: none;
         }
         .speech-bubble {
@@ -57,7 +60,7 @@
             backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
         }
         .modal-box {
-            background: var(--sea-mid); width: 85%; max-width: 350px; max-height: 70vh; border-radius: 25px;
+            background: var(--sea-mid); width: 85%; max-width: 350px; max-height: 70%; border-radius: 25px;
             padding: 25px 20px; text-align: center; border: 1px solid var(--sea-light);
             display: flex; flex-direction: column;
         }
@@ -73,28 +76,32 @@
         }
         .storage-item:active { transform: scale(0.9); }
 
+        /* 🌟 바텀 시트 트랜지션 로직 완벽 개선 (Transform 사용) */
         .ui-layer {
-            background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            position: absolute; bottom: 0; left: 0; right: 0;
+            height: 60%; /* 열렸을 때 화면의 60% 차지 */
+            height: 60dvh; /* 최신 브라우저 동적 뷰포트 지원 */
+            background: rgba(0, 0, 0, 0.65); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
             border-radius: 30px 30px 0 0; 
             padding: 0 20px calc(env(safe-area-inset-bottom) + 15px);
             display: flex; flex-direction: column; z-index: 1000;
-            box-shadow: 0 -5px 25px rgba(0,0,0,0.2); border-top: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 -5px 25px rgba(0,0,0,0.3); border-top: 1px solid rgba(255,255,255,0.1);
+            box-sizing: border-box;
             
-            height: 45px; 
-            transition: height 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-            overflow: hidden; 
+            /* 평소에는 손잡이(60px)만 보이게 화면 아래로 밀어넣음 */
+            transform: translateY(calc(100% - 60px - env(safe-area-inset-bottom))); 
+            transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
         
+        /* 확장 클래스가 붙으면 제자리(0)로 스르륵 올라옴 */
         .ui-layer.expanded {
-            height: 55vh; 
+            transform: translateY(0);
         }
         
-        /* 🌟 드래그 손잡이 (브라우저 간섭 차단 속성 추가) */
         .drag-handle {
-            width: 100%; height: 45px; flex-shrink: 0;
+            width: 100%; height: 60px; flex-shrink: 0;
             display: flex; justify-content: center; align-items: center;
-            cursor: pointer;
-            touch-action: none; /* 핵심: 모바일 브라우저의 기본 새로고침/스크롤 간섭 차단 */
+            cursor: pointer; touch-action: none;
         }
         .drag-handle::after {
             content: ''; width: 40px; height: 5px; background: rgba(255,255,255,0.4);
@@ -106,274 +113,4 @@
         .tab.active { background: var(--sea-light); opacity: 1; }
         
         .input-box { display: flex; gap: 10px; margin-bottom: 15px; flex-shrink: 0; }
-        input { flex: 1; background: var(--glass); border: none; padding: 15px; border-radius: 16px; color: white; outline: none; font-size: 16px; }
-        input::placeholder { color: rgba(255,255,255,0.6); }
-        .add-btn { background: white; color: var(--sea-dark); border: none; border-radius: 16px; width: 54px; font-weight: bold; font-size: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-        .add-btn:active { background: #e0e0e0; }
-
-        #todoList { 
-            flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; 
-            padding-bottom: 10px; scrollbar-width: none;
-        }
-        #todoList::-webkit-scrollbar { display: none; }
-
-        .todo-item { display: flex; align-items: center; background: rgba(255,255,255,0.08); padding: 16px; border-radius: 18px; margin-bottom: 10px; }
-        .check { width: 26px; height: 26px; border: 2.5px solid var(--sea-light); border-radius: 50%; margin-right: 14px; flex-shrink: 0; transition: 0.2s; cursor: pointer; }
-        .check.done { background: var(--sea-light); display: flex; align-items: center; justify-content: center; }
-        .check.done::after { content: '✓'; font-size: 15px; font-weight: bold; color: white; }
-        .todo-text { flex: 1; font-size: 16px; font-weight: 500; word-break: break-word; cursor: pointer; }
-        .todo-text.done { opacity: 0.4; text-decoration: line-through; }
-    </style>
-</head>
-<body>
-
-    <div id="aquarium">
-        <div class="top-ui">
-            <button class="badge storage-btn" onclick="openStorage()">📦 보관함</button>
-            <div class="badge">SUCCESS: <span id="total-count">0</span></div>
-        </div>
-    </div>
-
-    <div class="ui-layer" id="uiLayer">
-        <div class="drag-handle" id="dragHandle"></div>
-        
-        <div class="tabs">
-            <div id="tab-month" class="tab active" onclick="setTab('month', this)">월간</div>
-            <div id="tab-week" class="tab" onclick="setTab('week', this)">주간</div>
-            <div id="tab-day" class="tab" onclick="setTab('day', this)">일간</div>
-            <div id="tab-etc" class="tab" onclick="setTab('etc', this)">기타</div>
-        </div>
-        <div class="input-box">
-            <input type="text" id="todoInput" placeholder="언젠간 해야 할 일.." onkeypress="if(event.key==='Enter') addTodo()">
-            <button class="add-btn" onclick="addTodo()">+</button>
-        </div>
-        <div id="todoList"></div>
-    </div>
-
-    <div id="storage-modal" onclick="closeStorage()">
-        <div class="modal-box" onclick="event.stopPropagation()">
-            <h3 style="margin: 0 0 5px 0;">🐟 물고기 보관함</h3>
-            <p style="font-size: 12px; opacity: 0.7; margin-bottom: 15px;">클릭하면 다시 수조로 보낼 수 있어!</p>
-            <div class="storage-grid" id="storage-grid"></div>
-            <button class="add-btn" style="width: 100%; margin-top: 20px; height: 50px; font-size: 16px; border-radius: 16px;" onclick="closeStorage()">닫기</button>
-        </div>
-    </div>
-
-    <script>
-        let todos = JSON.parse(localStorage.getItem('aqua-v4-todos')) || [];
-        let aquariumItems = JSON.parse(localStorage.getItem('aqua-v4-items')) || [];
-        let archivedItems = JSON.parse(localStorage.getItem('aqua-v4-archive')) || [];
-        let currentTab = 'month';
-        let elements = [];
-
-        const fishAssets = {
-            month: ['🐟', '🐬', '🐋', '🦈', '🐠', '🐳'],
-            week: ['🐡', '🦑', '🐙', '🦐', '🦀'],
-            day: ['🌿', '🌱', '🎍', '🐚', '💎'],
-            etc: ['☘️', '🌟', '🍀', '🏺', '🗿']
-        };
-
-        const cheers = ["힘내ㅐ!", "할 수 있다어!", "거의 다 왔다어!", "최고!", "멋져!", "조금만 더!", "응원응원!","잘하고있어!"];
-
-        // 🌟 터치 씹힘을 해결한 스마트 스와이프 제어
-        const uiLayer = document.getElementById('uiLayer');
-        const dragHandle = document.getElementById('dragHandle');
-        let startY = 0;
-        let hasSwiped = false; // 제스처가 '클릭'인지 '스와이프'인지 구분하는 플래그
-
-        dragHandle.addEventListener('touchstart', (e) => {
-            startY = e.touches[0].clientY;
-            hasSwiped = false;
-        }, { passive: true });
-
-        dragHandle.addEventListener('touchmove', (e) => {
-            if(Math.abs(e.touches[0].clientY - startY) > 10) {
-                hasSwiped = true; // 10px 이상 움직이면 '이건 스와이프다' 라고 못 박음
-            }
-        }, { passive: true });
-
-        dragHandle.addEventListener('touchend', (e) => {
-            if (hasSwiped) {
-                const endY = e.changedTouches[0].clientY;
-                const deltaY = endY - startY;
-                
-                if (deltaY < -20) {
-                    uiLayer.classList.add('expanded'); // 위로 스와이프 (열기)
-                } else if (deltaY > 20) {
-                    uiLayer.classList.remove('expanded'); // 아래로 스와이프 (닫기)
-                    document.getElementById('todoInput').blur();
-                }
-            }
-        });
-
-        // 그냥 터치(클릭)했을 때
-        dragHandle.addEventListener('click', () => {
-            if (!hasSwiped) {
-                uiLayer.classList.toggle('expanded');
-                if(!uiLayer.classList.contains('expanded')) document.getElementById('todoInput').blur();
-            }
-        });
-
-        function save() {
-            localStorage.setItem('aqua-v4-todos', JSON.stringify(todos));
-            localStorage.setItem('aqua-v4-items', JSON.stringify(aquariumItems));
-            localStorage.setItem('aqua-v4-archive', JSON.stringify(archivedItems));
-        }
-
-        function setTab(tab, el) {
-            currentTab = tab;
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            el.classList.add('active');
-            render();
-        }
-
-        function addTodo() {
-            const input = document.getElementById('todoInput');
-            if(!input.value.trim()) return;
-            todos.unshift({ id: Date.now(), text: input.value, done: false, type: currentTab });
-            input.value = '';
-            input.blur();
-            save();
-            render();
-        }
-
-        function toggle(id) {
-            const todo = todos.find(t => t.id === id);
-            todo.done = !todo.done;
-            if (todo.done) checkMilestone(todo.type);
-            save();
-            render();
-        }
-
-        function checkMilestone(type) {
-            const completedCount = todos.filter(t => t.type === type && t.done).length;
-            const totalCompleted = todos.filter(t => t.done).length;
-            
-            if (completedCount > 0 && completedCount % 1 === 0) spawnCreature(type);
-            if (totalCompleted > 0 && totalCompleted % 5 === 0) spawnCreature('whale');
-        }
-
-        function spawnCreature(type) {
-            const iconList = type === 'whale' ? ['🐋', '🐳'] : fishAssets[type];
-            const newItem = {
-                id: Date.now(),
-                icon: iconList[Math.floor(Math.random() * iconList.length)],
-                x: Math.random() * 80 + 10, y: Math.random() * 50 + 10,
-                vx: (Math.random() - 0.5) * 2, vy: (Math.random() - 0.5) * 2,
-                size: type === 'whale' ? 70 : (type === 'month' ? 45 : 30),
-                type: type, clickCount: 0
-            };
-            aquariumItems.push(newItem);
-            save();
-            initCreatures();
-        }
-
-        function initCreatures() {
-            const container = document.getElementById('aquarium');
-            container.querySelectorAll('.creature-container').forEach(c => c.remove());
-            elements = [];
-
-            aquariumItems.forEach(item => {
-                const wrapper = document.createElement('div');
-                wrapper.className = 'creature-container';
-                
-                const bubble = document.createElement('div');
-                bubble.className = 'speech-bubble';
-                
-                const el = document.createElement('div');
-                el.className = 'creature';
-                el.innerText = item.icon;
-                el.style.fontSize = item.size + 'px';
-                
-                wrapper.appendChild(bubble);
-                wrapper.appendChild(el);
-                
-                // 🌟 물고기도 터치가 씹히지 않게 표준 onclick 으로 통일
-                el.onclick = (e) => handleCreatureClick(item, bubble, e);
-                
-                container.appendChild(wrapper);
-                elements.push({ dom: wrapper, data: item });
-            });
-            document.getElementById('total-count').innerText = todos.filter(t => t.done).length;
-        }
-
-        function handleCreatureClick(item, bubble, e) {
-            e.stopPropagation();
-            
-            item.clickCount = (item.clickCount || 0) + 1;
-            
-            bubble.innerText = cheers[Math.floor(Math.random() * cheers.length)];
-            bubble.style.display = 'block';
-            
-            clearTimeout(item.bubbleTimeout);
-            item.bubbleTimeout = setTimeout(() => bubble.style.display = 'none', 1500);
-
-            if (item.clickCount >= 2) {
-                item.clickCount = 0;
-                archivedItems.push(item);
-                aquariumItems = aquariumItems.filter(i => i.id !== item.id);
-                save();
-                initCreatures();
-            }
-        }
-
-        function openStorage() {
-            const grid = document.getElementById('storage-grid');
-            grid.innerHTML = '';
-            if (archivedItems.length === 0) {
-                grid.innerHTML = '<div style="grid-column: 1/-1; opacity:0.5; font-size:14px; padding:20px 0;">보관함이 비어있습니다.</div>';
-            }
-            archivedItems.forEach((item, idx) => {
-                const div = document.createElement('div');
-                div.className = 'storage-item';
-                div.innerText = item.icon;
-                div.onclick = () => {
-                    aquariumItems.push(item);
-                    archivedItems.splice(idx, 1);
-                    save();
-                    openStorage();
-                    initCreatures();
-                };
-                grid.appendChild(div);
-            });
-            document.getElementById('storage-modal').style.display = 'flex';
-        }
-
-        function closeStorage() { document.getElementById('storage-modal').style.display = 'none'; }
-
-        function animate() {
-            elements.forEach(obj => {
-                const item = obj.data; const el = obj.dom;
-                item.x += item.vx * 0.3; item.y += item.vy * 0.3;
-                if (item.x < 0 || item.x > 90) item.vx *= -1;
-                if (item.y < 5 || item.y > 85) item.vy *= -1;
-                const flip = item.vx > 0 ? 'scaleX(-1)' : 'scaleX(1)';
-                el.style.left = item.x + '%'; el.style.top = item.y + '%';
-                el.style.transform = `${flip}`;
-            });
-            requestAnimationFrame(animate);
-        }
-
-        function render() {
-            const list = document.getElementById('todoList');
-            list.innerHTML = '';
-            const currentTodos = todos.filter(t => t.type === currentTab);
-            const activeTasks = currentTodos.filter(t => !t.done);
-            const doneTasks = currentTodos.filter(t => t.done);
-            
-            if(currentTodos.length === 0) {
-                list.innerHTML = `<div style="text-align:center; padding: 30px; opacity: 0.5; font-size: 14px;">할 일이 없습니다.<br>수조를 채워볼까요?</div>`;
-            }
-
-            [...activeTasks, ...doneTasks].forEach(t => {
-                const item = document.createElement('div');
-                item.className = 'todo-item';
-                item.innerHTML = `<div class="check ${t.done ? 'done' : ''}" onclick="toggle(${t.id})"></div><div class="todo-text ${t.done ? 'done' : ''}" onclick="toggle(${t.id})">${t.text}</div>`;
-                list.appendChild(item);
-            });
-        }
-
-        initCreatures(); render(); animate();
-    </script>
-</body>
-</html>
+        input { flex: 1; background: var(--glass); border: none; padding: 15px; border-radius:
