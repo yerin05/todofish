@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>미오 아쿠아리움 v4 (TEST)</title>
+    <style>
+        :root {
+            --sea-dark: #001220; --sea-mid: #004a7c; --sea-light: #0094ff;
+            --glass: rgba(255, 255, 255, 0.15);
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(180deg, var(--sea-mid) 0%, var(--sea-dark) 100%);
+            color: white; margin: 0; overflow: hidden; height: 100vh; display: flex; flex-direction: column;
+            -webkit-tap-highlight-color: transparent;
+        }
+        #aquarium { flex: 1; position: relative; overflow: hidden; }
+        .top-ui {
+            position: absolute; top: env(safe-area-inset-top, 20px); left: 20px; right: 20px;
+            display: flex; justify-content: space-between; align-items: center; z-index: 100;
+            margin-top: 20px;
+        }
+        .badge {
+            background: rgba(0,0,0,0.4); padding: 8px 16px; border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.15); font-size: 12px; font-weight: bold;
+            backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
+        }
+        .storage-btn { background: var(--sea-light); border: none; color: white; cursor: pointer; }
+        .creature-container { position: absolute; z-index: 50; pointer-events: auto; }
+        .creature { 
+            cursor: pointer; user-select: none; font-size: 30px; 
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+        }
+        .speech-bubble {
+            position: absolute; bottom: 110%; left: 50%; transform: translateX(-50%);
+            background: white; color: var(--sea-dark); padding: 6px 12px;
+            border-radius: 12px; font-size: 13px; font-weight: bold; white-space: nowrap;
+            display: none; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .speech-bubble::after {
+            content: ''; position: absolute; top: 100%; left: 50%;
+            margin-left: -6px; border-width: 6px; border-style: solid;
+            border-color: white transparent transparent transparent;
+        }
+        #storage-modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 2000; flex-direction: column; justify-content: center; align-items: center;
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+        }
+        .modal-box {
+            background: var(--sea-mid); width: 85%; max-width: 350px; max-height: 70vh; border-radius: 25px;
+            padding: 25px 20px; text-align: center; border: 1px solid var(--sea-light);
+            display: flex; flex-direction: column;
+        }
+        .storage-grid { 
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(50px, 1fr)); 
+            gap: 12px; margin-top: 15px; overflow-y: auto; padding-bottom: 10px;
+            scrollbar-width: none;
+        }
+        .storage-grid::-webkit-scrollbar { display: none; }
+        .storage-item { 
+            font-size: 32px; background: rgba(255,255,255,0.1); padding: 12px 5px; 
+            border-radius: 16px; cursor: pointer; transition: transform 0.1s;
+        }
+        .storage-item:active { transform: scale(0.9); }
+        .ui-layer {
+            background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border-radius: 30px 30px 0 0; padding: 15px 20px calc(env(safe-area-inset-bottom) + 15px);
+            height: 48vh; display: flex; flex-direction: column; z-index: 1000;
+            box-shadow: 0 -5px 25px rgba(0,0,0,0.2); border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        .ui-layer::before {
+            content: ''; width: 40px; height: 5px; background: rgba(255,255,255,0.3);
+            border-radius: 5px; margin: 0 auto 15px auto; display: block;
+        }
+        .tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 15px; flex-shrink: 0; }
+        .tab { background: var(--glass); padding: 12px 5px; border-radius: 14px; text-align: center; font-size: 13px; font-weight: bold; opacity: 0.5; transition: 0.2s; }
+        .tab.active { background: var(--sea-light); opacity: 1; }
+        .input-box { display: flex; gap: 10px; margin-bottom: 15px; flex-shrink: 0; }
+        input { flex: 1; background: var(--glass); border: none; padding: 15px; border-radius: 16px; color: white; outline: none; font-size: 16px; }
+        input::placeholder { color: rgba(255,255,255,0.6); }
+        .add-btn { background: white; color: var(--sea-dark); border: none; border-radius: 16px; width: 54px; font-weight: bold; font-size: 24px; display: flex; align-items: center; justify-content: center; }
+        .add-btn:active { background: #e0e0e0; }
+        #todoList { 
+            flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; 
+            padding-bottom: 10px; scrollbar-width: none;
+        }
+        #todoList::-webkit-scrollbar { display: none; }
+        .todo-item { display: flex; align-items: center; background: rgba(255,255,255,0.08); padding: 16px; border-radius: 18px; margin-bottom: 10px; }
+        .check { width: 26px; height: 26px; border: 2.5px solid var(--sea-light); border-radius: 50%; margin-right: 14px; flex-shrink: 0; transition: 0.2s; }
+        .check.done { background: var(--sea-light); display: flex; align-items: center; justify-content: center; }
+        .check.done::after { content: '✓'; font-size: 15px; font-weight: bold; color: white; }
+        .todo-text { flex: 1; font-size: 16px; font-weight: 500; word-break: break-word; }
+        .todo-text.done { opacity: 0.4; text-decoration: line-through; }
+    </style>
+</head>
+<body>
+
+    <div id="aquarium">
+        <div class="top-ui">
+            <button class="badge storage-btn" onclick="openStorage()">📦 보관함</button>
+            <div class="badge">SUCCESS: <span id="total-count">0</span></div>
+        </div>
+    </div>
+
+    <div class="ui-layer">
+        <div class="tabs">
+            <div id="tab-month" class="tab active" onclick="setTab('month', this)">월간</div>
+            <div id="tab-week" class="tab" onclick="setTab('week', this)">주간</div>
+            <div id="tab-day" class="tab" onclick="setTab('day', this)">일간</div>
+            <div id="tab-etc" class="tab" onclick="setTab('etc', this)">기타</div>
+        </div>
+        <div class="input-box">
+            <input type="text" id="todoInput" placeholder="언젠간 해야 할 일.." onkeypress="if(event.key==='Enter') addTodo()">
+            <button class="add-btn" onclick="addTodo()">+</button>
+        </div>
+        <div id="todoList"></div>
+    </div>
+
+    <div id="storage-modal" onclick="closeStorage()">
+        <div class="modal-box" onclick="event.stopPropagation()">
+            <h3 style="margin: 0 0 5px 0;">🐟 물고기 보관함</h3>
+            <p style="font-size: 12px; opacity: 0.7; margin-bottom: 15px;">클릭하면 다시 수조로 보낼 수 있어!</p>
+            <div class="storage-grid" id="storage-grid"></div>
+            <button class="add-btn" style="width: 100%; margin-top: 20px; height: 50px; font-size: 16px; border-radius: 16px;" onclick="closeStorage()">닫기</button>
+        </div>
+    </div>
+
+    <script>
+        let todos = JSON.parse(localStorage.getItem('aqua-v4-todos')) || [];
+        let aquariumItems = JSON.parse(localStorage.getItem('aqua-v4-items')) || [];
+        let archivedItems = JSON.parse(localStorage.getItem('aqua-v4-archive')) || [];
+        let currentTab = 'month';
+        let elements = [];
+
+        const fishAssets = {
+            month: ['🐟', '🐬', '🐋', '🦈', '🐠', '🐳'],
+            week: ['🐡', '🦑', '🐙', '🦐', '🦀'],
+            day: ['🌿', '🌱', '🎍', '🐚', '💎'],
+            etc: ['☘️', '🌟', '🍀', '🏺', '🗿']
+        };
+
+        const cheers = ["힘내ㅐ!", "할 수 있다어!", "거의 다 왔다어!", "최고!", "멋져!", "조금만 더!", "응원응원!","잘하고있어!"];
+
+        function save() {
+            localStorage.setItem('aqua-v4-todos', JSON.stringify(todos));
+            localStorage.setItem('aqua-v4-items', JSON.stringify(aquariumItems));
+            localStorage.setItem('aqua-v4-archive', JSON.stringify(archivedItems));
+        }
+
+        function setTab(tab, el) {
+            currentTab = tab;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+            render();
+        }
+
+        function addTodo() {
+            const input = document.getElementById('todoInput');
+            if(!input.value.trim()) return;
+            todos.unshift({ id: Date.now(), text: input.value, done: false, type: currentTab });
+            input.value = '';
+            input.blur();
+            save();
+            render();
+        }
+
+        function toggle(id) {
+            const todo = todos.find(t => t.id === id);
+            if (!todo.done) {
+                todo.done = true;
+                checkMilestone(todo.type);
+            } else { todo.done = false; }
+            save();
+            render();
+        }
+
+        function checkMilestone(type) {
+            const completedCount = todos.filter(t => t.type === type && t.done).length;
+            const totalCompleted = todos.filter(t => t.done).length;
+            
+            // ⭐ 테스트용 조건: 1개 완료할 때마다 생성 (원래는 completedCount % 10 === 0)
+            if (completedCount > 0 && completedCount % 1 === 0) spawnCreature(type);
+            // ⭐ 테스트용 조건: 총 5개 완료 시 고래 생성 (원래는 totalCompleted % 100 === 0)
+            if (totalCompleted > 0 && totalCompleted % 5 === 0) spawnCreature('whale');
+        }
+
+        function spawnCreature(type) {
+            const iconList = type === 'whale' ? ['🐋', '🐳'] : fishAssets[type];
+            const newItem = {
+                id: Date.now(),
+                icon: iconList[Math.floor(Math.random() * iconList.length)],
+                x: Math.random() * 80 + 10, y: Math.random() * 50 + 10,
+                vx: (Math.random() - 0.5) * 2, vy: (Math.random() - 0.5) * 2,
+                size: type === 'whale' ? 70 : (type === 'month' ? 45 : 30),
+                type: type, clickCount: 0
+            };
+            aquariumItems.push(newItem);
+            save();
+            initCreatures();
+        }
+
+        function initCreatures() {
+            const container = document.getElementById('aquarium');
+            container.querySelectorAll('.creature-container').forEach(c => c.remove());
+            elements = [];
+
+            aquariumItems.forEach(item => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'creature-container';
+                
+                const bubble = document.createElement('div');
+                bubble.className = 'speech-bubble';
+                
+                const el = document.createElement('div');
+                el.className = 'creature';
+                el.innerText = item.icon;
+                el.style.fontSize = item.size + 'px';
+                
+                wrapper.appendChild(bubble);
+                wrapper.appendChild(el);
+                
+                el.onmousedown = (e) => handleCreatureClick(item, bubble, e);
+                el.ontouchstart = (e) => handleCreatureClick(item, bubble, e);
+                
+                container.appendChild(wrapper);
+                elements.push({ dom: wrapper, data: item });
+            });
+            document.getElementById('total-count').innerText = todos.filter(t => t.done).length;
+        }
+
+        function handleCreatureClick(item, bubble, e) {
+            e.stopPropagation();
+            e.preventDefault();
+            
+            item.clickCount = (item.clickCount || 0) + 1;
+            
+            bubble.innerText = cheers[Math.floor(Math.random() * cheers.length)];
+            bubble.style.display = 'block';
+            
+            clearTimeout(item.bubbleTimeout);
+            item.bubbleTimeout = setTimeout(() => bubble.style.display = 'none', 1500);
+
+            if (item.clickCount >= 2) {
+                item.clickCount = 0;
+                archivedItems.push(item);
+                aquariumItems = aquariumItems.filter(i => i.id !== item.id);
+                save();
+                initCreatures();
+            }
+        }
+
+        function openStorage() {
+            const grid = document.getElementById('storage-grid');
+            grid.innerHTML = '';
+            if (archivedItems.length === 0) {
+                grid.innerHTML = '<div style="grid-column: 1/-1; opacity:0.5; font-size:14px; padding:20px 0;">보관함이 비어있습니다.</div>';
+            }
+            archivedItems.forEach((item, idx) => {
+                const div = document.createElement('div');
+                div.className = 'storage-item';
+                div.innerText = item.icon;
+                div.onclick = () => {
+                    aquariumItems.push(item);
+                    archivedItems.splice(idx, 1);
+                    save();
+                    openStorage();
+                    initCreatures();
+                };
+                grid.appendChild(div);
+            });
+            document.getElementById('storage-modal').style.display = 'flex';
+        }
+
+        function closeStorage() { document.getElementById('storage-modal').style.display = 'none'; }
+
+        function animate() {
+            elements.forEach(obj => {
+                const item = obj.data; const el = obj.dom;
+                item.x += item.vx * 0.3; item.y += item.vy * 0.3;
+                if (item.x < 0 || item.x > 90) item.vx *= -1;
+                if (item.y < 5 || item.y > 85) item.vy *= -1;
+                const flip = item.vx > 0 ? 'scaleX(-1)' : 'scaleX(1)';
+                el.style.left = item.x + '%'; el.style.top = item.y + '%';
+                el.style.transform = `${flip}`;
+            });
+            requestAnimationFrame(animate);
+        }
+
+        function render() {
+            const list = document.getElementById('todoList');
+            list.innerHTML = '';
+            const currentTodos = todos.filter(t => t.type === currentTab);
+            const activeTasks = currentTodos.filter(t => !t.done);
+            const doneTasks = currentTodos.filter(t => t.done);
+            
+            if(currentTodos.length === 0) {
+                list.innerHTML = `<div style="text-align:center; padding: 30px; opacity: 0.5; font-size: 14px;">할 일이 없습니다.<br>수조를 채워볼까요?</div>`;
+            }
+
+            [...activeTasks, ...doneTasks].forEach(t => {
+                const item = document.createElement('div');
+                item.className = 'todo-item';
+                item.innerHTML = `<div class="check ${t.done ? 'done' : ''}" onclick="toggle(${t.id})"></div><div class="todo-text ${t.done ? 'done' : ''}" onclick="toggle(${t.id})">${t.text}</div>`;
+                list.appendChild(item);
+            });
+        }
+
+        initCreatures(); render(); animate();
+    </script>
+</body>
+</html>
